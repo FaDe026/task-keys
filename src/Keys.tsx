@@ -1,52 +1,49 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, KeyboardEvent } from 'react';
+import { IItem } from './index';
 
-interface IItem {
-    id: number;
-    name: string;
-}
-
-type Sorting = 'ASC' | 'DESC';
-
-interface KeysProps {
-    initialData: IItem[];
-    sorting: Sorting;
-}
-
-const Keys: React.FC<KeysProps> = ({ initialData, sorting }) => {
-    const [items, setItems] = useState<IItem[]>([]);
+export function Keys(props: { initialData: IItem[]; sorting: 'ASC' | 'DESC' }) {
+    const [items, setItems] = useState<IItem[]>(props.initialData);
     const [editingId, setEditingId] = useState<number | null>(null);
-    const [editedName, setEditedName] = useState<string>('');
-
-    useEffect(() => {
-        setItems(initialData);
-    }, [initialData]);
-
-    const sortedItems = [...items].sort((a, b) =>
-        sorting === 'ASC' ? a.id - b.id : b.id - a.id,
+    const [editValue, setEditValue] = useState<string>('');
+    const [currentSorting, setCurrentSorting] = useState<'ASC' | 'DESC'>(
+        props.sorting,
     );
+    useEffect(() => {
+        setItems(props.initialData);
+    }, [props.initialData]);
+    useEffect(() => {
+        setCurrentSorting(props.sorting);
+    }, [props.sorting]);
+    const sortedItems = [...items].sort((a, b) => {
+        return currentSorting === 'ASC' ? a.id - b.id : b.id - a.id;
+    });
 
-    const handleEditClick = (item: IItem) => {
+    const startEditing = (item: IItem) => {
         setEditingId(item.id);
-        setEditedName(item.name);
+        setEditValue(item.name);
     };
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setEditedName(e.target.value);
-    };
-
-    const handleKeyDown = (id: number) => (e: React.KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, item: IItem) => {
         if (e.key === 'Enter') {
-            setItems((prev) =>
-                prev.map((item) =>
-                    item.id === id ? { ...item, name: editedName } : item,
-                ),
-            );
-            setEditingId(null);
+            saveEdit(item);
+        } else if (e.key === 'Escape') {
+            cancelEdit();
         }
+    };
 
-        if (e.key === 'Escape') {
-            setEditingId(null);
-        }
+    const saveEdit = (item: IItem) => {
+        if (editValue.trim() === '') return;
+
+        setItems(
+            items.map((i) =>
+                i.id === item.id ? { ...i, name: editValue } : i,
+            ),
+        );
+        setEditingId(null);
+    };
+
+    const cancelEdit = () => {
+        setEditingId(null);
     };
 
     return (
@@ -55,22 +52,20 @@ const Keys: React.FC<KeysProps> = ({ initialData, sorting }) => {
                 <div key={item.id}>
                     {editingId === item.id ? (
                         <input
-                            key={`input-${item.id}`}
                             type="text"
-                            value={editedName}
-                            onChange={handleChange}
-                            onKeyDown={handleKeyDown(item.id)}
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={(e) => handleKeyDown(e, item)}
+                            onBlur={() => saveEdit(item)}
                             autoFocus
                         />
                     ) : (
-                        <span onClick={() => handleEditClick(item)}>
+                        <div onClick={() => startEditing(item)}>
                             {item.name}
-                        </span>
+                        </div>
                     )}
                 </div>
             ))}
         </div>
     );
-};
-
-export default Keys;
+}
